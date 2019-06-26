@@ -6,6 +6,7 @@ import com.sun.jna.platform.win32.Kernel32;
 import info.kgeorgiy.ping4j.PingException;
 import info.kgeorgiy.ping4j.PingRequest;
 import info.kgeorgiy.ping4j.PingResult;
+import info.kgeorgiy.ping4j.generic.VersionedPing;
 
 import java.net.Inet6Address;
 

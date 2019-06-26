@@ -1,10 +1,9 @@
 package info.kgeorgiy.ping4j.windows;
 
-import info.kgeorgiy.ping4j.PingException;
 import info.kgeorgiy.ping4j.PingRequest;
 import info.kgeorgiy.ping4j.PingResult;
-
-import java.io.IOException;
+import info.kgeorgiy.ping4j.generic.CommandPing;
+import info.kgeorgiy.ping4j.generic.VersionedPing;
 
 /**
  * Ping based on <code>ping</code> command.
@@ -23,25 +22,14 @@ public class WindowsCommandPing extends VersionedPing {
     }
 
     private PingResult ping(final PingRequest request, final String version) {
-        try {
-            final Process process = new ProcessBuilder().command(
-                    "ping", version,
-                    "-n", "1",
-                    "-l", Integer.toString(request.getPacketSize()),
-                    "-i", Integer.toString(request.getTtl()),
-                    "-w", Integer.toString(request.getTimeout()),
-                    request.getAddress().getHostAddress()
-            ).start();
-            if (process.waitFor() == 0) {
-                return new PingResult(request.getAddress(), 1);
-            } else {
-                return new PingResult(request.getAddress(), "ping exit code " + process.exitValue());
-            }
-        } catch (final IOException e) {
-            throw new PingException(e, "Cannot create 'ping' process: " + e.getMessage());
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PingException(e, "Interrupted");
-        }
+        return CommandPing.ping(
+                request,
+                "ping", version,
+                "-n", "1",
+                "-l", Integer.toString(request.getPacketSize()),
+                "-i", Integer.toString(request.getTtl()),
+                "-w", Integer.toString(request.getTimeout()),
+                request.getAddress().getHostAddress()
+        );
     }
 }

@@ -1,4 +1,4 @@
-package info.kgeorgiy.ping4j.windows;
+package info.kgeorgiy.ping4j.generic;
 
 import info.kgeorgiy.ping4j.Ping;
 import info.kgeorgiy.ping4j.PingRequest;

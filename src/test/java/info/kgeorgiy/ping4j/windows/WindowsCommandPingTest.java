@@ -12,6 +12,6 @@ import org.junit.jupiter.api.condition.OS;
 @EnabledOnOs(OS.WINDOWS)
 class WindowsCommandPingTest extends AbstractPingTest {
     WindowsCommandPingTest() {
-        super(new WindowsCommandPing(), !System.getProperty("os.name").startsWith("Windows"));
+        super(new WindowsCommandPing(), false);
     }
 }
