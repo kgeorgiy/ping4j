@@ -6,7 +6,7 @@ package info.kgeorgiy.ping4j;
  * @author Georgiy Korneev
  */
 public final class PingException extends RuntimeException {
-    public PingException(final String format, final Object... args) {
-        super(String.format(format, args));
+    public PingException(final Throwable cause, final String format, final Object... args) {
+        super(String.format(format, args), cause);
     }
 }

@@ -23,7 +23,7 @@ public class JavaPing implements Ping {
                 return new PingResult(request.getAddress(), "Unreachable");
             }
         } catch (final IOException e) {
-            throw new PingException("JavaPing error: %s", e.getMessage());
+            throw new PingException(e, "JavaPing error: %s", e.getMessage());
         }
     }
 }
