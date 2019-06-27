@@ -1,11 +1,11 @@
 package info.kgeorgiy.ping4j.windows;
 
-import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.Kernel32;
 import info.kgeorgiy.ping4j.PingException;
 import info.kgeorgiy.ping4j.PingRequest;
 import info.kgeorgiy.ping4j.PingResult;
+import info.kgeorgiy.ping4j.generic.PingData;
 import info.kgeorgiy.ping4j.generic.VersionedPing;
 
 import java.net.Inet6Address;
@@ -16,13 +16,6 @@ import java.net.Inet6Address;
  * @author Georgiy Korneev
  */
 public final class WindowsPing extends VersionedPing {
-    private static final int PING_DATA_SIZE = 65536;
-    private static final Memory PING_DATA = new Memory(PING_DATA_SIZE);
-    static {
-        for (int i = 0; i < PING_DATA_SIZE; i++) {
-            PING_DATA.setByte(i, (byte) i);
-        }
-    }
 
     @Override
     protected PingResult ping6(final PingRequest request) {
@@ -36,7 +29,7 @@ public final class WindowsPing extends VersionedPing {
                     Pointer.NULL,
                     new IpHlpApi.SockaddrIn6(),
                     new IpHlpApi.SockaddrIn6((Inet6Address) request.getAddress()),
-                    PING_DATA,
+                    PingData.PING_DATA,
                     request.getPacketSize(),
                     getRequestOptions(request),
                     reply,
@@ -82,12 +75,7 @@ public final class WindowsPing extends VersionedPing {
 
     @Override
     protected PingResult ping4(final PingRequest request) {
-        final byte[] address = request.getAddress().getAddress();
-        final int ipAddress =
-                (address[3] & 0xff) << 24 |
-                        (address[2] & 0xff) << 16 |
-                        (address[1] & 0xff) <<  8 |
-                        (address[0] & 0xff);
+        final int ipAddress = PingData.getIp4Address(request);
 
         final IpHlpApi.Icmp4Handle icmpHandle = checkHandle(IpHlpApi.INSTANCE.IcmpCreateFile());
         try {
@@ -98,7 +86,7 @@ public final class WindowsPing extends VersionedPing {
                     Pointer.NULL,
                     Pointer.NULL,
                     ipAddress,
-                    PING_DATA,
+                    PingData.PING_DATA,
                     request.getPacketSize(),
                     getRequestOptions(request),
                     reply,
