@@ -16,7 +16,6 @@ import java.net.Inet6Address;
  * @author Georgiy Korneev
  */
 public final class WindowsPing extends VersionedPing {
-
     @Override
     protected PingResult ping6(final PingRequest request) {
         final IpHlpApi.Icmp6Handle icmpHandle = checkHandle(IpHlpApi.INSTANCE.Icmp6CreateFile());
@@ -58,6 +57,8 @@ public final class WindowsPing extends VersionedPing {
             return new PingResult(request.getAddress(), IpHlpApi.IcmpStatus.valueOf(errorCode));
         } else if (!IpHlpApi.IcmpStatus.IP_SUCCESS.is(status)) {
             return new PingResult(request.getAddress(), IpHlpApi.IcmpStatus.valueOf(status));
+        } else if (roundTripTime > request.getTimeout()) {
+            return new PingResult(request.getAddress(), IpHlpApi.IcmpStatus.IP_REQ_TIMED_OUT.name());
         } else {
             final int size = Math.min(32, request.getPacketSize());
             for (int i = 0; i < size; i++) {
