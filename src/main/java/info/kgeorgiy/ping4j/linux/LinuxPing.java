@@ -26,18 +26,41 @@ public class LinuxPing extends VersionedPing {
             setSocketOption("Set receive buffer size", socket, Posix.SOL_SOCKET, Posix.SO_RCVBUF, request.getPacketSize());
             setSocketOption("Set TTL", socket, Posix.IPPROTO_IP, Posix.IP_TTL, request.getTtl());
 
-            final Posix.SockAddrIn sockAddr = new Posix.SockAddrIn((short) 0, PingData.getIp4Address(request));
-            System.out.printf("\t\tsockAddr.size() = %d%n", sockAddr.size());
-            System.out.printf("\t\tsockAddr.address = %x%n", sockAddr.address);
+            final Posix.SockAddrIn toAddr = new Posix.SockAddrIn((short) 0, PingData.getIp4Address(request));
             check(
                     "Cannot send ICMP request",
-                    Posix.INSTANCE.sendto(socket, PingData.PING_DATA, request.getPacketSize(), 0, sockAddr, sockAddr.size())
+                    Posix.INSTANCE.sendto(socket, PingData.PING_DATA, request.getPacketSize(), 0, toAddr, toAddr.size())
             );
+            final Posix.PollDescriptor pollDescriptor = new Posix.PollDescriptor(socket, Posix.POLLIN);
+            final int polled = Posix.INSTANCE.poll(new Posix.PollDescriptor[]{pollDescriptor}, 1, request.getTimeout());
+            check("Poll failed", polled);
+            if (polled == 0) {
+                return fail(request, "Timed out");
+            }
+            final Posix.SockAddrIn fromAddr = new Posix.SockAddrIn();
+
+            final byte[] receiveBuffer = new byte[request.getPacketSize()];
+            final IntByReference fromAddrSize = new IntByReference(fromAddr.size());
+            final int received = Posix.INSTANCE.recvfrom(socket, receiveBuffer, receiveBuffer.length, 0, fromAddr, fromAddrSize);
+
+            check("Receive failed", received);
+            if (fromAddrSize.getValue() != fromAddr.size() || fromAddr.address != toAddr.address) {
+                return fail(request, "Received packet from unknown address");
+            }
+            if (received < 20) {
+                return fail(request, "Incomplete packet: no IP header");
+            }
+            final int headerLength = (receiveBuffer[0] & 0xf0) >> 2;
+
 
             return new PingResult(request.getAddress(), 10);
         } finally {
             closeSocket(socket);
         }
+    }
+
+    private PingResult fail(final PingRequest request, final String message) {
+        return new PingResult(request.getAddress(), message);
     }
 
     private void closeSocket(final int socket) {

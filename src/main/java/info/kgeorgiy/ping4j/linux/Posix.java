@@ -36,28 +36,16 @@ public interface Posix extends Library {
     /* Time to live. */
     int IP_TTL = 2;
 
-    /**
-     * Man:
-     * <pre>{@code int socket(int domain, int type, int protocol);}</pre>
-     */
+    /** Man: <pre>{@code int socket(int domain, int type, int protocol);}</pre> */
      int socket(int domain, int type, int protocol);
 
-    /**
-     * Man:
-     * <pre>{@code int close(int fd);}</pre>
-     */
+    /** Man: <pre>{@code int close(int fd);}</pre> */
     int close(int fd);
 
-    /**
-     * Man:
-     * <pre>{@code int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);}</pre>
-     */
+    /** Man: <pre>{@code int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);}</pre> */
     int getsockopt(int sockfd, int level, int optname, PointerType optval, IntByReference optlen);
 
-    /**
-     * Man:
-     * <pre>{@code int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen); }</pre>
-     */
+    /** Man: <pre>{@code int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen); }</pre> */
     int setsockopt(int sockfd, int level, int optname, PointerType optval, int optlen);
 
     /**
@@ -66,6 +54,19 @@ public interface Posix extends Library {
      *       const struct sockaddr *dest_addr, socklen_t dest_len)}</pre>
      */
     int sendto(int socket, Pointer message, int length, int flags, SockAddrIn destAddr, int destLen);
+
+    /**
+     * Man:
+     * <pre>{@code
+     *  ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
+     *                   struct sockaddr *src_addr, socklen_t *addrlen);
+     * }</pre>
+     */
+    int recvfrom(int sockfd, byte[] buffer, int len, int flags, SockAddrIn addr, IntByReference addrlen);
+
+
+    /** Man: <pre>{@code pid_t getpid(void);}</pre> */
+    int getpid();
 
     /**
      * Man:
@@ -84,9 +85,53 @@ public interface Posix extends Library {
         public int address;
         public byte[] zero = new byte[8];
 
+        public SockAddrIn() {
+        }
+
         public SockAddrIn(final short port, final int address) {
             this.port = port;
             this.address = address;
         }
+    }
+
+    /**
+     * Man:
+     * <pre>{@code
+     *  struct pollfd {
+     *      int   fd;         // file descriptor
+     *      short events;     // requested events
+     *      short revents;    // returned events
+     *  };
+     * }</pre>
+     */
+    @Structure.FieldOrder({"descriptor", "events", "returnedEvents"})
+    class PollDescriptor extends Structure {
+        int descriptor;
+        short events;
+        short returnedEvents;
+
+        public PollDescriptor(final int descriptor, final short events) {
+            this.descriptor = descriptor;
+            this.events = events;
+        }
+    }
+
+    /* There is data to read. */
+    short POLLIN = 1;
+
+    /**
+     * Man: <pre>{@code int poll(struct pollfd *fds, nfds_t nfds, int timeout);}</pre>
+     */
+    int poll(PollDescriptor[] fds, long nfds, int timeout);
+
+    /**
+     *
+     */
+    class IcmpPacket extends Structure {
+        byte type;
+        byte code;
+        short checksum;
+        byte ih_pptr;
+
     }
 }
