@@ -4,7 +4,9 @@ import info.kgeorgiy.ping4j.PingException;
 import info.kgeorgiy.ping4j.PingRequest;
 import info.kgeorgiy.ping4j.PingResult;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 /**
  * @author Georgiy Korneev (kgeorgiy@kgeorgiy.info)
@@ -17,10 +19,13 @@ public final class CommandPing {
             final Process process = new ProcessBuilder().command(args).start();
             if (process.waitFor() == 0) {
                 final long time = System.currentTimeMillis() - start;
-                if (time < request.getTimeout()) {
-                    return new PingResult(request.getAddress(), (int) time);
-                } else {
+                if (time > request.getTimeout()) {
                     return new PingResult(request.getAddress(), "Timed out");
+                // Windows workaround
+                } else if (new BufferedReader(new InputStreamReader(process.getInputStream())).lines().anyMatch(line -> line.contains("expired"))) {
+                    return new PingResult(request.getAddress(), "TTL expired in transit");
+                } else {
+                    return new PingResult(request.getAddress(), (int) time);
                 }
             } else {
                 return new PingResult(request.getAddress(), "ping exit code " + process.exitValue());
