@@ -64,12 +64,12 @@ public abstract class AbstractPingTest {
 
     private void checkSuccess(final InetAddress address, final boolean local) {
         checkSuccess(address, PACKET_SIZE, local);
-        checkFail(address, 0, TEST_RTT, PACKET_SIZE);
 
         if (local) {
             checkSuccess(address, JUMBO_PACKET_SIZE, true);
         } else {
-            checkFail(address, TEST_TIMEOUT, 0, PACKET_SIZE);
+            checkFail(address, 1, TEST_RTT, PACKET_SIZE);
+            checkFail(address, TEST_TIMEOUT, 1, PACKET_SIZE);
             checkFail(address, TEST_TIMEOUT, TEST_RTT, JUMBO_PACKET_SIZE);
         }
     }
