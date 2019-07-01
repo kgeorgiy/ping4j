@@ -21,8 +21,8 @@ public final class CommandPing {
                 final long time = System.currentTimeMillis() - start;
                 if (time > request.getTimeout()) {
                     return new PingResult(request.getAddress(), "Timed out");
-                // Windows workaround
                 } else if (new BufferedReader(new InputStreamReader(process.getInputStream())).lines().anyMatch(line -> line.contains("expired"))) {
+                    // Windows workaround
                     return new PingResult(request.getAddress(), "TTL expired in transit");
                 } else {
                     return new PingResult(request.getAddress(), (int) time);
