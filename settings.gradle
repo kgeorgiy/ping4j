@@ -1,4 +1,5 @@
 rootProject.name = 'ping4j'
 
 include 'ping4j-windows'
+include 'ping4j-posix'
 include 'ping4j-java'

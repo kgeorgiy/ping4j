@@ -1,0 +1,41 @@
+plugins {
+    id 'cpp-library'
+    id 'cpp-unit-test'
+}
+
+library {
+    targetMachines = [machines.linux.x86, machines.linux.x86_64, machines.windows.x86_64]
+
+    binaries.configureEach {
+        def compileTask = compileTask.get()
+        def linkTask = linkTask.get()
+
+        compileTask.source.from fileTree(dir: "src/main/c", include: "**/*.c")
+        if (toolChain instanceof GccCompatibleToolChain) {
+            compileTask.compilerArgs = ["-x", "c", "-std=c99", "-D_POSIX_C_SOURCE=200112L", "-Wall", "-Werror"]
+//            linkTask.linkerArgs = ["-liphlpapi"]
+        }
+    }
+}
+
+unitTest {
+    targetMachines = [machines.linux.x86, machines.linux.x86_64]
+
+    binaries.configureEach {
+        def compileTask = compileTask.get()
+        def linkTask = linkTask.get()
+
+        compileTask.source.from fileTree(dir: "src/test/c", include: "**/*.c")
+
+        if (toolChain instanceof GccCompatibleToolChain) {
+            compileTask.compilerArgs = ["-x", "c", "-std=c99", "-D_POSIX_C_SOURCE=200112L", "-Wall", "-Werror"]
+//            linkTask.linkerArgs = ["-liphlpapi", "-ldnsapi"]
+        }
+    }
+}
+
+model {
+    toolChains {
+        gcc(Gcc)
+    }
+}
