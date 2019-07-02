@@ -75,10 +75,7 @@ void dns(const char* name, struct DnsSettings* settings, void* address) {
     printf("DNS type %s query for %s\n", settings->type, name);
     memset(address, 0, settings->size);
 
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = settings->family;
-    hints.ai_socktype = SOCK_DGRAM;
+    struct addrinfo hints = {.ai_family = settings->family, .ai_socktype = SOCK_DGRAM};
 
     struct addrinfo* result;
     int s = getaddrinfo(name, NULL, &hints, &result);
@@ -158,12 +155,12 @@ void check4(uint32_t expectedResult, PING4J_IPV4_ADDRESS* address, uint32_t time
 }
 
 void checkSuccess4(PING4J_IPV4_ADDRESS* address, bool global) {
-    check4(RESULT_SUCCESS, address, 1000, 100, 100);
-    check4(RESULT_SUCCESS, address, 1000, 100, 1);
+    check4(RESULT_SUCCESS, address, 10000, 100, 100);
+    check4(RESULT_SUCCESS, address, 10000, 100, 1);
 
     if (global){
         check4(RESULT_STATUS, address, 1, 100, 100);
-        check4(RESULT_STATUS, address, 1000, 1, 100);
+        check4(RESULT_STATUS, address, 100, 1, 100);
     }
 }
 
@@ -187,7 +184,7 @@ void checkSuccess6(PING4J_IPV6_ADDRESS* address, bool global) {
 
     if (global){
         check6(RESULT_STATUS, address, 1, 100, 100);
-        check6(RESULT_STATUS, address, 10000, 1, 100);
+        check6(RESULT_STATUS, address, 100, 1, 100);
     }
 }
 
@@ -210,14 +207,15 @@ int main() {
     ping4jInit();
 
     checkSuccess4(&local4, false);
+    checkSuccess4(&local4, false);
     checkFail4(&reserved4);
     checkSuccess4(&localhost4, false);
     checkSuccess4(&google4, true);
 
-    checkSuccess6(&local6, false);
-    checkFail6(&reserved6);
-    checkSuccess6(&localhost6, false);
-    checkSuccess6(&google6, true);
+//    checkSuccess6(&local6, false);
+//    checkFail6(&reserved6);
+//    checkSuccess6(&localhost6, false);
+//    checkSuccess6(&google6, true);
 
     if (failure == 0) {
         printf("SUCCESS (%d tests)\n", asserts);
