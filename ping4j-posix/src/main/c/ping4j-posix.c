@@ -108,7 +108,6 @@ static void ping(
     if (!check(&context, context.socket)) {
         return;
     }
-    printf("\t\tsocket %d\n", context.socket);
 
     int ttlInt = ttl;
     if (
@@ -117,7 +116,6 @@ static void ping(
     ) {
         return;
     }
-    printf("\t\toptions\n");
 
     uint16_t identifier = getpid();
     uint16_t sequence = seq++;
@@ -137,24 +135,15 @@ static void ping(
         request.body[i] = (unsigned char) 'a' + i;
     }
     request.header.checksum = checksum(&request, size);
-    printf("\t\tpacket\n");
 
     uint64_t current = currentTimeMillis();
     if (!check(&context, current)) {
         return;
     }
 
-    printf("\t\taddress:");
-    for (int i = 0; i < toAddressLen; i++) {
-        printf(" %02x", ((uint8_t *) toAddress)[i]);
-    }
-    printf("\n");
-    printf("\t\treal size: %ld\n", sizeof(request));
-    printf("\t\tsize = %d %d %ld\n", size, toAddressLen, sizeof(struct sockaddr_in6));
     if (!check(&context, sendto(context.socket, &request, size, 0, toAddress, toAddressLen))) {
         return;
     }
-    printf("\t\tsendto\n");
 
     const int64_t deadline = current + timeout;
     while (true) {
@@ -170,7 +159,6 @@ static void ping(
         socklen_t fromAddressLen = toAddressLen;
 
         const ssize_t received = recvfrom(context.socket, &reply, sizeof(reply), 0, (struct sockaddr*) &fromAddress, &fromAddressLen);
-        printf("\t\treceived %ld\n", received);
 
         if (received == -1 && errno == EAGAIN) {
             setResult(&context, RESULT_STATUS, ICMP_TIMED_OUT);
@@ -194,37 +182,19 @@ static void ping(
             continue;
         }
 
-        printf("\t\treceived: ");
-        for (int i = 0; i < received; i++) {
-            printf("%02x ", reply[i]);
-        }
-        printf("\n");
-
-        // IP packet length field
+        // IP packet length
         size_t headerLen = domain == AF_INET ? ((*(uint8_t *) reply) & 0xf) * 4 : 0;
-        printf("\t\theaderLen: %ld\n", headerLen);
         if (received < headerLen + sizeof(PING4J_ICMP_ECHO)) {
             continue;
         }
 
         const PING4J_ICMP_ECHO* echo = (PING4J_ICMP_ECHO *) (reply + headerLen);
-        printf(
-            "\t\ttype: %d %d, id: %d %d, seq %d %d\n",
-            ICMP_ECHOREPLY, echo->type,
-            identifier, echo->identifier,
-            sequence, echo->sequence/*,
-            toAddress.sin_addr.s_addr, fromAddress.sin_addr.s_addr
-            */
-        );
         if (
             echo->type != echoReplyType ||
             echo->identifier != identifier ||
             echo->sequence != sequence ||
             fromAddressLen != toAddressLen ||
             memcmp(fromAddress + addressOffset, ((uint8_t *) toAddress) + addressOffset, addressLength) != 0
-             /*||
-            fromAddress.sin_addr.s_addr != toAddress.sin_addr.s_addr
-            */
         ) {
             continue;
         }
