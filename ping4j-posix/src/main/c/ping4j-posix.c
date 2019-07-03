@@ -136,8 +136,8 @@ static void ping(
     }
     request.header.checksum = checksum(&request, size);
 
-    uint64_t current = currentTimeMillis();
-    if (!check(&context, current)) {
+    const uint64_t start = currentTimeMillis();
+    if (!check(&context, start)) {
         return;
     }
 
@@ -145,9 +145,9 @@ static void ping(
         return;
     }
 
-    const int64_t deadline = current + timeout;
+    int64_t current = start;
     while (true) {
-        int64_t remaining = deadline - current;
+        int64_t remaining = start + timeout - current;
 
         struct timeval remainingVal = {.tv_sec = remaining / 1000, .tv_usec = remaining % 1000 * 1000};
         if (!setOption(&context, SOL_SOCKET, SO_RCVTIMEO, &remainingVal, sizeof(remainingVal))) {
@@ -173,7 +173,7 @@ static void ping(
             return;
         }
 
-        if (current >= deadline) {
+        if (current - start >= timeout) {
             setResult(&context, RESULT_STATUS, ICMP_TIMED_OUT);
             return;
         }
@@ -203,7 +203,7 @@ static void ping(
             return;
         }
         context.socket = NO_SOCKET;
-        setResult(&context, RESULT_SUCCESS, 0);
+        setResult(&context, RESULT_SUCCESS, current - start);
         return;
     }
 }
