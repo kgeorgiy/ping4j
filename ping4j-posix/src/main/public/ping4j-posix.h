@@ -1,5 +1,5 @@
-#ifndef PING4J_WINDOWS_H
-#define PING4J_WINDOWS_H
+#ifndef PING4J_POSIX_H
+#define PING4J_POSIX_H
 
 #include <stdint.h>
 
