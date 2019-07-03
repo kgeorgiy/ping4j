@@ -14,6 +14,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#define SOCKET_TYPE SOCK_DGRAM
+#else
+#define SOCKET_TYPE SOCK_RAW
+#endif
+
 struct IcmpPacket {
     PING4J_ICMP_ECHO header;
     uint8_t body[65000];
@@ -80,13 +86,13 @@ void ping4jPing4(
         packetSize = MIN_PACKET_SIZE;
     }
 
-    int sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    int sock = socket(AF_INET, SOCKET_TYPE, IPPROTO_ICMP);
     if (!check(sock, result)) {
         return;
     }
+    printf("\t\tcreated\n");
 
     uint32_t ttl32 = ttl;
-    printf("\t\tcreated\n");
     struct timeval timevalue = {.tv_sec = timeout / 1000, .tv_usec = timeout % 1000 * 1000};
     printf("\t\ttimeout = %d, sec = %d, usec = %d\n", timeout, (uint32_t) timevalue.tv_sec, (uint32_t) timevalue.tv_usec);
     if (
