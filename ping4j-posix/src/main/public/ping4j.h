@@ -1,5 +1,13 @@
-#ifndef PING4J_POSIX_H
-#define PING4J_POSIX_H
+#ifndef PING4J_H
+#define PING4J_H
+
+#if defined(_WIN32)
+    #define EXPORT __declspec(dllexport)
+#elif defined(__GNUC__) || defined(__clang__)
+    #define EXPORT __attribute__((visibility("default")))
+#else
+    #pragma error Unknown dynamic link import/export semantics.
+#endif
 
 #include <stdint.h>
 
@@ -23,22 +31,22 @@ typedef struct Ping4jResult {
 #ifdef __cplusplus
 extern "C" {
 #endif
-void ping4jInit();
+EXPORT void ping4jInit();
 
-void ping4jPing4(
+EXPORT void ping4jPing4(
     const struct Ping4jIpv4Address* const address,
     const uint32_t timeout,
     const uint8_t ttl,
     const uint16_t packetSize,
-    struct Ping4jResult* result
+    struct Ping4jResult* const result
 );
 
-void ping4jPing6(
+EXPORT void ping4jPing6(
     const struct Ping4jIpv6Address* const address,
     const uint32_t timeout,
     const uint8_t ttl,
     const uint16_t packetSize,
-    struct Ping4jResult* result
+    struct Ping4jResult* const result
 );
 #ifdef __cplusplus
 }

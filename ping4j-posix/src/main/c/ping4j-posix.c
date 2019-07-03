@@ -1,4 +1,4 @@
-#include "ping4j-posix.h"
+#include "ping4j.h"
 
 #include "ping4j-icmp.h"
 
@@ -213,7 +213,7 @@ void ping4jPing4(
     const uint32_t timeout,
     const uint8_t ttl,
     const uint16_t packetSize,
-    struct Ping4jResult* result
+    struct Ping4jResult* const result
 ) {
     const struct sockaddr_in toAddress = {
         .sin_family = AF_INET,
@@ -235,7 +235,7 @@ void ping4jPing6(
     const uint32_t timeout,
     const uint8_t ttl,
     const uint16_t packetSize,
-    struct Ping4jResult* result
+    struct Ping4jResult* const result
 ) {
     const struct sockaddr_in6 toAddress = {
         .sin6_family = AF_INET6,

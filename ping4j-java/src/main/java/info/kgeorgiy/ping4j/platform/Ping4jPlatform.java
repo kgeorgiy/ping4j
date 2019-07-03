@@ -1,4 +1,4 @@
-package info.kgeorgiy.ping4j.windows;
+package info.kgeorgiy.ping4j.platform;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
@@ -12,15 +12,12 @@ import java.net.InetAddress;
  *
  * @author Georgiy Korneev (kgeorgiy@kgeorgiy.info)
  */
-@SuppressWarnings("WeakerAccess")
-public interface Ping4jWindows extends Library {
-    /** Library instance. */
-    Ping4jWindows INSTANCE = Native.load("ping4j-windows", Ping4jWindows.class, W32APIOptions.DEFAULT_OPTIONS);
-
+@SuppressWarnings({"WeakerAccess", "Unused"})
+public interface Ping4jPlatform extends Library {
     /** Ping succeeded. {@link Result#value} is a round trip time in ms. */
     int RESULT_SUCCESS = 0;
 
-    /** System ping error. {@link Result#value} is error returned by GetLastError(). */
+    /** System ping error. {@link Result#value} is error returned by {@code GetLastError()}/{@code errno}. */
     int RESULT_ERROR = 1;
 
     /** Invalid ICMP status. {@link Result#value} is ICMP status. */
@@ -70,7 +67,7 @@ public interface Ping4jWindows extends Library {
      * Ping result.
      *
      * <pre>{@code
-     * struct Ping4jResult {
+     * typedef struct Ping4jResult {
      *     uint32_t result;
      *     uint32_t value;
      * } PING4J_RESULT;

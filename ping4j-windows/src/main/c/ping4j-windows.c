@@ -1,4 +1,4 @@
-#include "ping4j-windows.h"
+#include "ping4j.h"
 
 #include <winsock2.h>
 #include <Ws2tcpip.h>
@@ -37,10 +37,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     return TRUE;
 }
 
-bool setResult(struct Ping4jResult* pingResult, uint32_t result, uint32_t value) {
+void setResult(struct Ping4jResult* const pingResult, uint32_t result, uint32_t value) {
     pingResult->result = result;
     pingResult->value = value;
-    return false;
 }
 
 static const DWORD REPLY_SIZE = 65530;
@@ -51,9 +50,10 @@ struct Request {
     IP_OPTION_INFORMATION options;
 };
 
-bool prepare(uint8_t ttl, HANDLE handle, struct Request* request, struct Ping4jResult* result) {
+bool prepare(uint8_t ttl, HANDLE handle, struct Request* request, struct Ping4jResult* const result) {
     if (handle == INVALID_HANDLE_VALUE) {
-        return setResult(result, RESULT_LAST_ERROR, GetLastError());
+        setResult(result, RESULT_ERROR, GetLastError());
+        return false;
     }
 
     request->handle = handle;
@@ -67,13 +67,13 @@ void finalize(struct Request* request, uint32_t timeout, const DWORD replies, co
     const DWORD lastError = GetLastError();
 
     if (!IcmpCloseHandle(request->handle)) {
-        setResult(result, RESULT_LAST_ERROR, GetLastError());
+        setResult(result, RESULT_ERROR, GetLastError());
         return;
     }
 
     if (replies == 0) {
         if (lastError != IP_REQ_TIMED_OUT) {
-            setResult(result, RESULT_LAST_ERROR, lastError);
+            setResult(result, RESULT_ERROR, lastError);
         } else {
             setResult(result, RESULT_STATUS, lastError);
         }
@@ -90,11 +90,11 @@ void finalize(struct Request* request, uint32_t timeout, const DWORD replies, co
 }
 
 void ping4jPing4(
-    struct Ping4jIpv4Address* address,
-    uint32_t timeout,
-    uint8_t ttl,
-    uint16_t packetSize,
-    struct Ping4jResult* result
+    const struct Ping4jIpv4Address* const address,
+    const uint32_t timeout,
+    const uint8_t ttl,
+    const uint16_t packetSize,
+    struct Ping4jResult* const result
 ) {
     uint32_t hostAddress;
     memcpy(&hostAddress, &address->octets, 4);
@@ -123,11 +123,11 @@ void ping4jPing4(
 }
 
 void ping4jPing6(
-    struct Ping4jIpv6Address* address,
-    uint32_t timeout,
-    uint8_t ttl,
-    uint16_t packetSize,
-    struct Ping4jResult* result
+    const struct Ping4jIpv6Address* const address,
+    const uint32_t timeout,
+    const uint8_t ttl,
+    const uint16_t packetSize,
+    struct Ping4jResult* const result
 ) {
     SOCKADDR_IN6 hostAddress;
     ZeroMemory(&hostAddress, sizeof(hostAddress));

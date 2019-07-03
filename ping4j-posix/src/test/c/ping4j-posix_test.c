@@ -1,4 +1,4 @@
-#include "ping4j-posix.h"
+#include "ping4j.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>

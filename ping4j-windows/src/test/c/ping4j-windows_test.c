@@ -1,4 +1,4 @@
-#include "ping4j-windows.h"
+#include "ping4j.h"
 #include <stdio.h>
 #include <assert.h>
 #include <winsock2.h>
