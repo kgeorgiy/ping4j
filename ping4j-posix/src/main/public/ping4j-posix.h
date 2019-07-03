@@ -15,7 +15,7 @@ typedef struct Ping4jIpv6Address {
     uint8_t octets[16];
 } PING4J_IPV6_ADDRESS;
 
-struct Ping4jResult {
+typedef struct Ping4jResult {
     uint32_t result;
     uint32_t value;
 } PING4J_RESULT;
