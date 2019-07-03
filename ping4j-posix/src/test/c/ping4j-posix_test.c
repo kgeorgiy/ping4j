@@ -202,7 +202,7 @@ int main() {
 
     PING4J_IPV6_ADDRESS local6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
     PING4J_IPV6_ADDRESS reserved6 = {{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
-    PING4J_IPV6_ADDRESS localhost6 = dns6("ip6-localhost");
+    PING4J_IPV6_ADDRESS googleDns6 = {{0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x88}};
     PING4J_IPV6_ADDRESS google6 = dns6("ipv6.google.com");
 
     ping4jInit();
@@ -213,10 +213,10 @@ int main() {
     checkSuccess4(&googleDns4, true);
     checkSuccess4(&google4, true);
 
-//    checkSuccess6(&local6, false);
-//    checkFail6(&reserved6);
-//    checkSuccess6(&localhost6, false);
-//    checkSuccess6(&google6, true);
+    checkSuccess6(&local6, false);
+    checkFail6(&reserved6);
+    checkSuccess6(&googleDns6, true);
+    checkSuccess6(&google6, true);
 
     if (failure == 0) {
         printf("SUCCESS (%d tests)\n", asserts);

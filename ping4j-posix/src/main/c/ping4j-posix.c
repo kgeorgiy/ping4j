@@ -6,24 +6,22 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/icmp6.h>
 #include <sys/time.h>
 #include <time.h>
-#include <unistd.h>
 #include <errno.h>
+
+#include <unistd.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
 
 #ifdef __APPLE__
 #define SOCKET_TYPE SOCK_DGRAM
 #else
 #define SOCKET_TYPE SOCK_RAW
 #endif
-
-struct IcmpPacket {
-    PING4J_ICMP_ECHO header;
-    uint8_t body[65000];
-};
 
 const size_t MIN_PACKET_SIZE = sizeof(PING4J_ICMP_ECHO);
 
@@ -52,7 +50,6 @@ static const int NO_SOCKET = -1;
 typedef struct Context {
     int socket;
     PING4J_RESULT* result;
-    uint16_t packetSize;
 } CONTEXT;
 
 void setResult(CONTEXT* context, uint32_t result, uint32_t value) {
@@ -62,12 +59,6 @@ void setResult(CONTEXT* context, uint32_t result, uint32_t value) {
     if (context->socket != NO_SOCKET) {
         close(context->socket);
     }
-}
-
-void prologue(CONTEXT* context, uint16_t packetSize, PING4J_RESULT* result) {
-    context->socket = NO_SOCKET;
-    context->result = result;
-    context->packetSize = packetSize < MIN_PACKET_SIZE ? MIN_PACKET_SIZE : packetSize;
 }
 
 bool check(CONTEXT* context, int value) {
@@ -80,11 +71,7 @@ bool check(CONTEXT* context, int value) {
 }
 
 static const int REPLY_SIZE = 65530;
-
-struct Request {
-    int sock;
-    uint8_t reply[65530];
-};
+static const int MAX_ADDRESS_SIZE = 28;
 
 static const uint32_t ICMP_TIMED_OUT = 11010;
 static const uint32_t IP_HEADER_SIZE = 20;
@@ -97,69 +84,79 @@ int64_t currentTimeMillis() {
     return spec.tv_sec * (int64_t) 1000 + spec.tv_nsec / 1000000;
 }
 
-uint16_t seq = 0;
+volatile uint16_t seq = 0;
 
 bool setOption(CONTEXT* context, int level, int name, const void *value, socklen_t length) {
-	return check(context, setsockopt(context->socket, level, name, value, length));
+    return check(context, setsockopt(context->socket, level, name, value, length));
 }
 
-void ping4jPing4(
-    struct Ping4jIpv4Address* address,
-    uint32_t timeout,
-    uint8_t ttl,
-    uint16_t packetSize,
-    struct Ping4jResult* result
+static void ping(
+    const uint32_t timeout,
+    const uint8_t ttl,
+    const uint16_t packetSize,
+    PING4J_RESULT* result,
+    const int domain, const int protocol,
+    const int ttlOptionLevel, const int ttlOptionName,
+    const uint16_t echoRequestType, const uint16_t echoReplyType,
+    const size_t addressOffset, const size_t addressLength,
+    const struct sockaddr *const toAddress, const socklen_t toAddressLen
 ) {
-    CONTEXT context;
-    prologue(&context, packetSize, result);
+    CONTEXT context = {.socket = NO_SOCKET, .result = result};
+    const uint16_t size = packetSize < MIN_PACKET_SIZE ? MIN_PACKET_SIZE : packetSize;
 
-    context.socket = socket(AF_INET, SOCKET_TYPE, IPPROTO_ICMP);
+    context.socket = socket(domain, SOCKET_TYPE, protocol);
     if (!check(&context, context.socket)) {
         return;
     }
-    printf("\t\tsocket\n");
+    printf("\t\tsocket %d\n", context.socket);
 
-    uint32_t ttl32 = ttl;
+    int ttlInt = ttl;
     if (
         !setOption(&context, SOL_SOCKET, SO_RCVBUF, &REPLY_SIZE, sizeof(REPLY_SIZE)) ||
-        !setOption(&context, IPPROTO_IP, IP_TTL, &ttl32, sizeof(ttl32))
+        !setOption(&context, ttlOptionLevel, ttlOptionName, &ttlInt, sizeof(ttlInt))
     ) {
         return;
     }
     printf("\t\toptions\n");
 
-    uint16_t id = getpid();
+    uint16_t identifier = getpid();
     uint16_t sequence = seq++;
 
-    static struct IcmpPacket request;
-    request.header.type = ICMP_ECHO;
+    struct IcmpPacket {
+        PING4J_ICMP_ECHO header;
+        uint8_t body[65000];
+    } request;
+    request.header.type = echoRequestType;
     request.header.code = 0;
     request.header.checksum = 0;
-    request.header.identifier = id;
+    request.header.identifier = identifier;
     request.header.sequence = sequence;
 
-    for (unsigned int i = 0; i < context.packetSize - sizeof(request.header); i++) {
+    uint16_t bodySize = size - sizeof(request.header);
+    for (uint16_t i = 0; i < bodySize; i++) {
         request.body[i] = (unsigned char) 'a' + i;
     }
-    request.header.checksum = checksum(&request, context.packetSize);
+    request.header.checksum = checksum(&request, size);
+    printf("\t\tpacket\n");
 
-    int64_t current = currentTimeMillis();
+    uint64_t current = currentTimeMillis();
     if (!check(&context, current)) {
         return;
     }
 
-    const struct sockaddr_in toAddress = {.sin_family = AF_INET, .sin_addr = {*(uint32_t *) address->octets}};
-    if (!check(&context, sendto(
-        context.socket,
-        &request, context.packetSize,
-        0,
-        (struct sockaddr*) &toAddress, sizeof(toAddress))
-    )) {
+    printf("\t\taddress:");
+    for (int i = 0; i < toAddressLen; i++) {
+        printf(" %02x", ((uint8_t *) toAddress)[i]);
+    }
+    printf("\n");
+    printf("\t\treal size: %ld\n", sizeof(request));
+    printf("\t\tsize = %d %d %ld\n", size, toAddressLen, sizeof(struct sockaddr_in6));
+    if (!check(&context, sendto(context.socket, &request, size, 0, toAddress, toAddressLen))) {
         return;
     }
-    printf("\t\tsendto %x %d\n", toAddress.sin_addr.s_addr, context.packetSize);
+    printf("\t\tsendto\n");
 
-    int64_t deadline = current + timeout;
+    const int64_t deadline = current + timeout;
     while (true) {
         int64_t remaining = deadline - current;
 
@@ -169,9 +166,8 @@ void ping4jPing4(
         }
 
         uint8_t reply[REPLY_SIZE];
-
-        struct sockaddr_in fromAddress;
-        socklen_t fromAddressLen = sizeof(fromAddress);
+        uint8_t fromAddress[MAX_ADDRESS_SIZE];
+        socklen_t fromAddressLen = toAddressLen;
 
         const ssize_t received = recvfrom(context.socket, &reply, sizeof(reply), 0, (struct sockaddr*) &fromAddress, &fromAddressLen);
         printf("\t\treceived %ld\n", received);
@@ -194,18 +190,18 @@ void ping4jPing4(
             return;
         }
 
-        if (received < IP_HEADER_SIZE) {
+        if (domain == AF_INET && received < IP_HEADER_SIZE) {
             continue;
         }
 
         printf("\t\treceived: ");
-        for (int i = 0; i < received + 10; i++) {
+        for (int i = 0; i < received; i++) {
             printf("%02x ", reply[i]);
         }
         printf("\n");
 
         // IP packet length field
-        size_t headerLen = ((*(uint8_t *) reply) & 0xf) * 4;
+        size_t headerLen = domain == AF_INET ? ((*(uint8_t *) reply) & 0xf) * 4 : 0;
         printf("\t\theaderLen: %ld\n", headerLen);
         if (received < headerLen + sizeof(PING4J_ICMP_ECHO)) {
             continue;
@@ -213,17 +209,22 @@ void ping4jPing4(
 
         const PING4J_ICMP_ECHO* echo = (PING4J_ICMP_ECHO *) (reply + headerLen);
         printf(
-            "\t\ttype: %d %d, id: %d %d, seq %d %d, addr %x %x\n",
+            "\t\ttype: %d %d, id: %d %d, seq %d %d\n",
             ICMP_ECHOREPLY, echo->type,
-            id, echo->identifier,
-            sequence, echo->sequence,
+            identifier, echo->identifier,
+            sequence, echo->sequence/*,
             toAddress.sin_addr.s_addr, fromAddress.sin_addr.s_addr
+            */
         );
         if (
-            echo->type != ICMP_ECHOREPLY ||
-            echo->identifier != id ||
+            echo->type != echoReplyType ||
+            echo->identifier != identifier ||
             echo->sequence != sequence ||
+            fromAddressLen != toAddressLen ||
+            memcmp(fromAddress + addressOffset, ((uint8_t *) toAddress) + addressOffset, addressLength) != 0
+             /*||
             fromAddress.sin_addr.s_addr != toAddress.sin_addr.s_addr
+            */
         ) {
             continue;
         }
@@ -237,15 +238,46 @@ void ping4jPing4(
     }
 }
 
-void ping4jPing6(
-    struct Ping4jIpv6Address* address,
-    uint32_t timeout,
-    uint8_t ttl,
-    uint16_t packetSize,
+void ping4jPing4(
+    const struct Ping4jIpv4Address* const address,
+    const uint32_t timeout,
+    const uint8_t ttl,
+    const uint16_t packetSize,
     struct Ping4jResult* result
 ) {
-    CONTEXT context;
-    prologue(&context, packetSize, result);
+    const struct sockaddr_in toAddress = {
+        .sin_family = AF_INET,
+        .sin_addr = {*(uint32_t *) address->octets}
+    };
 
-    setResult(&context, RESULT_ERROR, 0xffff);
+    ping(
+        timeout, ttl, packetSize, result,
+        AF_INET, IPPROTO_ICMP,
+        IPPROTO_IP, IP_TTL,
+        ICMP_ECHO, ICMP_ECHOREPLY,
+        offsetof(struct sockaddr_in, sin_addr), 4,
+        (const struct sockaddr *) &toAddress, sizeof(toAddress)
+    );
+}
+
+void ping4jPing6(
+    const struct Ping4jIpv6Address* const address,
+    const uint32_t timeout,
+    const uint8_t ttl,
+    const uint16_t packetSize,
+    struct Ping4jResult* result
+) {
+    const struct sockaddr_in6 toAddress = {
+        .sin6_family = AF_INET6,
+        .sin6_addr = *(struct in6_addr *) address->octets
+    };
+
+    ping(
+        timeout, ttl, packetSize, result,
+        AF_INET6, IPPROTO_ICMPV6,
+        IPPROTO_IPV6, IPV6_UNICAST_HOPS,
+        ICMP6_ECHO_REQUEST, ICMP6_ECHO_REPLY,
+        offsetof(struct sockaddr_in6, sin6_addr), 16,
+        (const struct sockaddr *) &toAddress, sizeof(toAddress)
+    );
 }

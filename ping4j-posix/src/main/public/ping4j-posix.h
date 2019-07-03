@@ -26,18 +26,18 @@ extern "C" {
 void ping4jInit();
 
 void ping4jPing4(
-    struct Ping4jIpv4Address* address,
-    uint32_t timeout,
-    uint8_t ttl,
-    uint16_t packetSize,
+    const struct Ping4jIpv4Address* const address,
+    const uint32_t timeout,
+    const uint8_t ttl,
+    const uint16_t packetSize,
     struct Ping4jResult* result
 );
 
 void ping4jPing6(
-    struct Ping4jIpv6Address* address,
-    uint32_t timeout,
-    uint8_t ttl,
-    uint16_t packetSize,
+    const struct Ping4jIpv6Address* const address,
+    const uint32_t timeout,
+    const uint8_t ttl,
+    const uint16_t packetSize,
     struct Ping4jResult* result
 );
 #ifdef __cplusplus
