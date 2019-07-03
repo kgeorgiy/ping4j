@@ -15,7 +15,6 @@
 #include <string.h>
 
 #ifdef __APPLE__
-#define iphdr ip
 #define icmphdr icmp
 #endif
 
@@ -70,6 +69,7 @@ bool check(int value, struct Ping4jResult* result) {
 
 static const uint32_t ICMP_TIMED_OUT = 11010;
 static const uint32_t ICMP_INVALID_REPLY = 11011;
+static const uint32_t IP_HEADER_SIZE = 20;
 
 uint16_t seq = 0;
 
@@ -167,7 +167,7 @@ void ping4jPing4(
         return;
     }
 
-    if (received < sizeof(struct iphdr)) {
+    if (received < IP_HEADER_SIZE) {
         close(sock);
         setResult(result, RESULT_STATUS, ICMP_INVALID_REPLY);
         return;
@@ -179,8 +179,8 @@ void ping4jPing4(
     }
     printf("\n");
 
-    const struct iphdr* replyIp = (struct iphdr*) reply;
-    size_t headerLen = replyIp->ihl * 4;
+    // IP packet length field
+    size_t headerLen = ((*(uint8_t *) reply) & 0xf) * 4;
     printf("\t\theaderLen: %ld\n", headerLen);
     if (received < headerLen + sizeof(struct icmphdr)) {
         close(sock);
