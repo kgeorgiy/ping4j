@@ -70,8 +70,15 @@ bool check(int value, struct Ping4jResult* result) {
 }
 
 static const uint32_t ICMP_TIMED_OUT = 11010;
-static const uint32_t ICMP_INVALID_REPLY = 11011;
 static const uint32_t IP_HEADER_SIZE = 20;
+
+int64_t currentTimeMillis() {
+    struct timespec spec;
+    if (clock_gettime(CLOCK_MONOTONIC, &spec) == -1) {
+    	return -1;
+    }
+    return spec.tv_sec * (int64_t) 1000 + spec.tv_nsec / 1000000;
+}
 
 uint16_t seq = 0;
 
@@ -93,12 +100,9 @@ void ping4jPing4(
     printf("\t\tcreated\n");
 
     uint32_t ttl32 = ttl;
-    struct timeval timevalue = {.tv_sec = timeout / 1000, .tv_usec = timeout % 1000 * 1000};
-    printf("\t\ttimeout = %d, sec = %d, usec = %d\n", timeout, (uint32_t) timevalue.tv_sec, (uint32_t) timevalue.tv_usec);
     if (
         !check(setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &REPLY_SIZE, sizeof(REPLY_SIZE)), result) ||
-        !check(setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl32, sizeof(ttl32)), result) ||
-        !check(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timevalue, sizeof(timevalue)), result)
+        !check(setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl32, sizeof(ttl32)), result)
     ) {
         close(sock);
         return;
@@ -128,99 +132,96 @@ void ping4jPing4(
     }
     request.header.checksum = checksum(&request, packetSize);
 
-    const struct sockaddr_in toAddress = {.sin_family = AF_INET, .sin_addr = {*(uint32_t *) address->octets}};
-    struct timespec start;
-    if (!check(clock_gettime(CLOCK_MONOTONIC, &start), result)) {
+    int64_t current = currentTimeMillis();
+    if (!check(current, result)) {
         close(sock);
         return;
     }
 
-    printf("\t\tstart\n");
-
+    const struct sockaddr_in toAddress = {.sin_family = AF_INET, .sin_addr = {*(uint32_t *) address->octets}};
     if (!check(sendto(sock, &request, packetSize, 0, (struct sockaddr*) &toAddress, sizeof(toAddress)), result)) {
         close(sock);
         return;
     }
     printf("\t\tsend %x %d\n", toAddress.sin_addr.s_addr, packetSize);
 
-    uint8_t reply[REPLY_SIZE];
-    memset(reply, -1, REPLY_SIZE);
+    int64_t deadline = current + timeout;
 
-    rec: ;
-    struct sockaddr_in fromAddress;
-    socklen_t fromAddressLen = sizeof(fromAddress);
+    while (true) {
+		int64_t remaining = deadline - current;
+    	struct timeval remainingVal = {.tv_sec = remaining / 1000, .tv_usec = remaining % 1000 * 1000};
+        if (!check(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &remainingVal, sizeof(remainingVal)), result)) {
+        	close(sock);
+        	return;
+        }
 
+        uint8_t reply[REPLY_SIZE];
 
-    const ssize_t received = recvfrom(sock, &reply, sizeof(reply), 0, (struct sockaddr*) &fromAddress, &fromAddressLen);
-    printf("\t\treceived %ld\n", received);
-    if (received == -1 && errno == EAGAIN) {
-        close(sock);
-        setResult(result, RESULT_STATUS, ICMP_TIMED_OUT);
-        return;
-    }
-    if (!check(received, result)) {
-        close(sock);
-        return;
-    }
+        struct sockaddr_in fromAddress;
+        socklen_t fromAddressLen = sizeof(fromAddress);
 
-    struct timespec end;
-    if (!check(clock_gettime(CLOCK_MONOTONIC, &end), result)) {
-        close(sock);
-        return;
-    }
+        const ssize_t received = recvfrom(sock, &reply, sizeof(reply), 0, (struct sockaddr*) &fromAddress, &fromAddressLen);
+        printf("\t\treceived %ld\n", received);
+        if (received == -1 && errno == EAGAIN) {
+            close(sock);
+            setResult(result, RESULT_STATUS, ICMP_TIMED_OUT);
+            return;
+        }
+        if (!check(received, result)) {
+            close(sock);
+            return;
+        }
 
-    if (received < IP_HEADER_SIZE) {
-        close(sock);
-        setResult(result, RESULT_STATUS, ICMP_INVALID_REPLY);
-        return;
-    }
+        current = currentTimeMillis();
+        if (!check(current, result)) {
+        	return;
+        }
 
-    printf("\t\treceived: ");
-    for (int i = 0; i < received + 10; i++) {
-        printf("%02x ", reply[i]);
-    }
-    printf("\n");
+        if (current >= deadline) {
+        	close(sock);
+            setResult(result, RESULT_STATUS, ICMP_TIMED_OUT);
+            return;
+        }
 
-    // IP packet length field
-    size_t headerLen = ((*(uint8_t *) reply) & 0xf) * 4;
-    printf("\t\theaderLen: %ld\n", headerLen);
-    if (received < headerLen + sizeof(PING4J_ICMP_ECHO)) {
-        close(sock);
-        setResult(result, RESULT_STATUS, ICMP_INVALID_REPLY);
-        return;
-    }
+        if (received < IP_HEADER_SIZE) {
+        	continue;
+        }
 
-    const PING4J_ICMP_ECHO* echo = (PING4J_ICMP_ECHO *) (reply + headerLen);
-    printf(
-        "\t\ttype: %d %d, id: %d %d, seq %d %d, addr %x %x\n",
-        ICMP_ECHOREPLY, echo->type,
-        id, echo->identifier,
-        sequence, echo->sequence,
-        toAddress.sin_addr.s_addr, fromAddress.sin_addr.s_addr
-    );
-    if (echo->type == ICMP_ECHO) {
-        goto rec;
-    }
-    if (
-        echo->type != ICMP_ECHOREPLY ||
-        echo->identifier != id ||
-        echo->sequence != sequence ||
-        fromAddress.sin_addr.s_addr != toAddress.sin_addr.s_addr
-    ) {
-        close(sock);
-        setResult(result, RESULT_STATUS, ICMP_INVALID_REPLY);
-        return;
-    }
-    if (!check(close(sock), result)) {
-        return;
-    }
+        printf("\t\treceived: ");
+        for (int i = 0; i < received + 10; i++) {
+            printf("%02x ", reply[i]);
+        }
+        printf("\n");
 
+        // IP packet length field
+        size_t headerLen = ((*(uint8_t *) reply) & 0xf) * 4;
+        printf("\t\theaderLen: %ld\n", headerLen);
+        if (received < headerLen + sizeof(PING4J_ICMP_ECHO)) {
+        	continue;
+        }
 
-    uint64_t elapsed = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    if (elapsed > timeout) {
-        setResult(result, RESULT_STATUS, ICMP_TIMED_OUT);
-    } else {
+        const PING4J_ICMP_ECHO* echo = (PING4J_ICMP_ECHO *) (reply + headerLen);
+        printf(
+            "\t\ttype: %d %d, id: %d %d, seq %d %d, addr %x %x\n",
+            ICMP_ECHOREPLY, echo->type,
+            id, echo->identifier,
+            sequence, echo->sequence,
+            toAddress.sin_addr.s_addr, fromAddress.sin_addr.s_addr
+        );
+        if (
+            echo->type != ICMP_ECHOREPLY ||
+            echo->identifier != id ||
+            echo->sequence != sequence ||
+            fromAddress.sin_addr.s_addr != toAddress.sin_addr.s_addr
+        ) {
+        	continue;
+        }
+
+        if (!check(close(sock), result)) {
+            return;
+        }
         setResult(result, RESULT_SUCCESS, 0);
+        return;
     }
 }
 
