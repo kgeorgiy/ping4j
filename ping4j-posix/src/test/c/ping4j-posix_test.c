@@ -197,6 +197,7 @@ int main() {
     PING4J_IPV4_ADDRESS local4 = {{127, 0, 0, 1}};
     PING4J_IPV4_ADDRESS reserved4 = {{192, 0, 1, 1}};
     PING4J_IPV4_ADDRESS localhost4 = dns4("localhost");
+    PING4J_IPV4_ADDRESS googleDns4 = {{8, 8, 8, 8}};
     PING4J_IPV4_ADDRESS google4 = dns4("ipv4.google.com");
 
     PING4J_IPV6_ADDRESS local6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
@@ -207,9 +208,9 @@ int main() {
     ping4jInit();
 
     checkSuccess4(&local4, false);
-    checkSuccess4(&local4, false);
     checkFail4(&reserved4);
     checkSuccess4(&localhost4, false);
+    checkSuccess4(&googleDns4, true);
     checkSuccess4(&google4, true);
 
 //    checkSuccess6(&local6, false);
