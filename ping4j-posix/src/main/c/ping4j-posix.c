@@ -99,15 +99,19 @@ int64_t currentTimeMillis() {
 
 uint16_t seq = 0;
 
+bool setOption(CONTEXT* context, int level, int name, const void *value, socklen_t length) {
+	return check(context, setsockopt(context->socket, level, name, value, length));
+}
+
 void ping4jPing4(
     struct Ping4jIpv4Address* address,
     uint32_t timeout,
     uint8_t ttl,
-    uint16_t packetSize2,
-    struct Ping4jResult* result2
+    uint16_t packetSize,
+    struct Ping4jResult* result
 ) {
     CONTEXT context;
-    prologue(&context, packetSize2, result2);
+    prologue(&context, packetSize, result);
 
     context.socket = socket(AF_INET, SOCKET_TYPE, IPPROTO_ICMP);
     if (!check(&context, context.socket)) {
@@ -117,8 +121,8 @@ void ping4jPing4(
 
     uint32_t ttl32 = ttl;
     if (
-        !check(&context, setsockopt(context.socket, SOL_SOCKET, SO_RCVBUF, &REPLY_SIZE, sizeof(REPLY_SIZE))) ||
-        !check(&context, setsockopt(context.socket, IPPROTO_IP, IP_TTL, &ttl32, sizeof(ttl32)))
+        !setOption(&context, SOL_SOCKET, SO_RCVBUF, &REPLY_SIZE, sizeof(REPLY_SIZE)) ||
+        !setOption(&context, IPPROTO_IP, IP_TTL, &ttl32, sizeof(ttl32))
     ) {
         return;
     }
@@ -160,7 +164,7 @@ void ping4jPing4(
         int64_t remaining = deadline - current;
 
         struct timeval remainingVal = {.tv_sec = remaining / 1000, .tv_usec = remaining % 1000 * 1000};
-        if (!check(&context, setsockopt(context.socket, SOL_SOCKET, SO_RCVTIMEO, &remainingVal, sizeof(remainingVal)))) {
+        if (!setOption(&context, SOL_SOCKET, SO_RCVTIMEO, &remainingVal, sizeof(remainingVal))) {
             return;
         }
 
