@@ -1,6 +1,6 @@
 #include "ping4j-posix.h"
 
-#define _DEFAULT_SOURCE
+#include "ping4j-icmp.h"
 
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -14,16 +14,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef __APPLE__
-#define icmphdr icmp
-#endif
-
 struct IcmpPacket {
-    struct icmphdr header;
+    PING4J_ICMP_ECHO header;
     uint8_t body[65000];
 };
 
-const size_t MIN_PACKET_SIZE = sizeof(struct icmphdr);
+const size_t MIN_PACKET_SIZE = sizeof(PING4J_ICMP_ECHO);
 
 uint16_t checksum(void *buffer, size_t len) {
     uint16_t *buf = buffer;
@@ -112,14 +108,14 @@ void ping4jPing4(
     printf("\t\tttl = %d\n", ttlRes);
 
     uint16_t id = getpid();
-    uint16_t localSeq = seq++;
+    uint16_t sequence = seq++;
 
     static struct IcmpPacket request;
     request.header.type = ICMP_ECHO;
     request.header.code = 0;
     request.header.checksum = 0;
-    request.header.un.echo.id = id;
-    request.header.un.echo.sequence = localSeq;
+    request.header.identifier = id;
+    request.header.sequence = sequence;
 
     for (unsigned int i = 0; i < packetSize - sizeof(request.header); i++) {
         request.body[i] = (unsigned char) 'a' + i;
@@ -182,27 +178,27 @@ void ping4jPing4(
     // IP packet length field
     size_t headerLen = ((*(uint8_t *) reply) & 0xf) * 4;
     printf("\t\theaderLen: %ld\n", headerLen);
-    if (received < headerLen + sizeof(struct icmphdr)) {
+    if (received < headerLen + sizeof(PING4J_ICMP_ECHO)) {
         close(sock);
         setResult(result, RESULT_STATUS, ICMP_INVALID_REPLY);
         return;
     }
 
-    const struct icmphdr* icmphdr = (struct icmphdr *) (reply + headerLen);
+    const PING4J_ICMP_ECHO* echo = (PING4J_ICMP_ECHO *) (reply + headerLen);
     printf(
         "\t\ttype: %d %d, id: %d %d, seq %d %d, addr %x %x\n",
-        ICMP_ECHOREPLY, icmphdr->type,
-        id, icmphdr->un.echo.id,
-        localSeq, icmphdr->un.echo.sequence,
+        ICMP_ECHOREPLY, echo->type,
+        id, echo->identifier,
+        sequence, echo->sequence,
         toAddress.sin_addr.s_addr, fromAddress.sin_addr.s_addr
     );
-    if (icmphdr->type == ICMP_ECHO) {
+    if (echo->type == ICMP_ECHO) {
         goto rec;
     }
     if (
-        icmphdr->type != ICMP_ECHOREPLY ||
-        icmphdr->un.echo.id != id ||
-        icmphdr->un.echo.sequence != localSeq ||
+        echo->type != ICMP_ECHOREPLY ||
+        echo->identifier != id ||
+        echo->sequence != sequence ||
         fromAddress.sin_addr.s_addr != toAddress.sin_addr.s_addr
     ) {
         close(sock);
