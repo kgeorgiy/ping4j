@@ -27,8 +27,9 @@ public class LinuxCommandPing extends VersionedPing {
                 program,
                 "-c", "1",
                 "-s", Integer.toString(request.getPacketSize()),
-                "-t", Integer.toString(request.getTtl()),
-                "-W", Integer.toString((request.getTimeout() + 500) / 1000),
+                "--ttl=" + request.getTtl(),
+                "-w", Integer.toString(Math.max(1, (request.getTimeout() + 500) / 1000)),
+                "-n", "-q",
                 request.getAddress().getHostAddress()
         );
     }
