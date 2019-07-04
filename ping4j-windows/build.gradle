@@ -4,25 +4,33 @@ plugins {
 }
 
 library {
-    targetMachines = [machines.windows.x86, machines.windows.x86_64]
+    targetMachines = [
+        machines.windows.x86,
+        machines.windows.x86_64
+    ]
+    linkage = [Linkage.SHARED]
 
     binaries.configureEach {
         def compileTask = compileTask.get()
         def linkTask = linkTask.get()
+        println linkFile.get()
 
         compileTask.source.from fileTree(dir: "src/main/c", include: "**/*.c")
         if (toolChain instanceof VisualCpp) {
-            compileTask.compilerArgs = ["/TC", "/W4", "/WX"]
-            linkTask.linkerArgs = ["iphlpapi.lib"]
+            compileTask.compilerArgs = ["/TC", "/W4", "/WX", "/wd4214"]
+            linkTask.linkerArgs = ["iphlpapi.lib", "dnsapi.lib"]
         } else if (toolChain instanceof GccCompatibleToolChain) {
             compileTask.compilerArgs = ["-x", "c", "-std=c99", "-Wall", "-Werror"]
-            linkTask.linkerArgs = ["-liphlpapi"]
+            linkTask.linkerArgs = ["-liphlpapi", "-ldnsapi"]
         }
     }
 }
 
 unitTest {
-    targetMachines = [machines.windows.x86, machines.windows.x86_64]
+    targetMachines = [
+        machines.windows.x86,
+        machines.windows.x86_64
+    ]
 
     binaries.configureEach {
         def compileTask = compileTask.get()
@@ -31,7 +39,7 @@ unitTest {
         compileTask.source.from fileTree(dir: "src/test/c", include: "**/*.c")
 
         if (toolChain instanceof VisualCpp) {
-            compileTask.compilerArgs = ["/TC", "/W4", "/WX", "/wd4214"]
+            compileTask.compilerArgs = ["/TC", "/W4", "/WX"]
             linkTask.linkerArgs = ["iphlpapi.lib", "dnsapi.lib"]
         } else if (toolChain instanceof GccCompatibleToolChain) {
             compileTask.compilerArgs = ["-x", "c", "-std=c99", "-Wall", "-Werror"]
@@ -46,3 +54,17 @@ model {
         gcc(Gcc)
     }
 }
+
+//task copyLibraries(type: Copy, dependsOn: ["linkDebugX86", "linkDebugX86-64"]) {
+//    with copySpec {
+//        from file("${buildDir}/lib/main/debug/x86-64/ping4j-windows.dll")
+//        rename { _ -> "ping4j-windows-x86_64.dll"}
+//    }
+//    with copySpec {
+//        from file("${buildDir}/lib/main/debug/x86/ping4j-windows.dll")
+//        rename { _ -> "ping4j-windows-x86.dll"}
+//    }
+//    into file("${projectDir}/_deploy")
+//}
+//
+//tasks.build.dependsOn(copyLibraries)
