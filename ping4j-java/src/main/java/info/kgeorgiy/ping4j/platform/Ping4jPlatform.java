@@ -1,9 +1,7 @@
 package info.kgeorgiy.ping4j.platform;
 
 import com.sun.jna.Library;
-import com.sun.jna.Native;
 import com.sun.jna.Structure;
-import com.sun.jna.win32.W32APIOptions;
 
 import java.net.InetAddress;
 

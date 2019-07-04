@@ -1,7 +1,6 @@
 package info.kgeorgiy.ping4j.java;
 
 import info.kgeorgiy.ping4j.Ping;
-import info.kgeorgiy.ping4j.PingException;
 import info.kgeorgiy.ping4j.PingRequest;
 import info.kgeorgiy.ping4j.PingResult;
 
@@ -23,7 +22,7 @@ public class JavaPing implements Ping {
                 return new PingResult(request.getAddress(), "Unreachable");
             }
         } catch (final IOException e) {
-            throw new PingException(e, "JavaPing error: %s", e.getMessage());
+            return new PingResult(request.getAddress(), "Network error: " + e.getMessage());
         }
     }
 }

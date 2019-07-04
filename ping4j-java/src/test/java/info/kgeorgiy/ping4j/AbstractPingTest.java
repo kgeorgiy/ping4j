@@ -16,9 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 public abstract class AbstractPingTest {
     private static final int TEST_TIMEOUT = 1000;
-    private static final int TEST_RTT = 100;
+    private static final int TEST_TTL = 100;
     private static final int PACKET_SIZE = 32;
-    private static final int JUMBO_PACKET_SIZE = 32000;
+    private static final int JUMBO_PACKET_SIZE = 8000;
 
     private final Ping ping;
     private final boolean mayFail;
@@ -68,28 +68,38 @@ public abstract class AbstractPingTest {
         if (local) {
             checkSuccess(address, JUMBO_PACKET_SIZE, true);
         } else {
-            checkFail(address, 1, TEST_RTT, PACKET_SIZE);
+            checkFail(address, 1, TEST_TTL, PACKET_SIZE);
             checkFail(address, TEST_TIMEOUT, 1, PACKET_SIZE);
-            checkFail(address, TEST_TIMEOUT, TEST_RTT, JUMBO_PACKET_SIZE);
+            checkFail(address, TEST_TIMEOUT, TEST_TTL, JUMBO_PACKET_SIZE);
         }
     }
 
     private void checkSuccess(final InetAddress address, final int packetSize, final boolean local) {
-        final PingResult result = ping(address, TEST_TIMEOUT, TEST_RTT, packetSize);
-        assertTrue(mayFail || result.isSuccess());
-        assertTrue(mayFail || local || result.getRoundTripTime() > 0);
+        final String context = context(address, TEST_TIMEOUT, TEST_TTL, packetSize);
+        final PingResult result = ping(address, TEST_TIMEOUT, TEST_TTL, packetSize);
+        assertTrue(mayFail || result.isSuccess(), context + "success");
+        assertTrue(mayFail || local || result.getRoundTripTime() > 0, context + "RTT > 0");
+    }
+
+    private String context(final InetAddress address, final int timeout, final int ttl, final int size) {
+        return String.format(
+                "ping %s, timeout=%d, ttl=%d, size=%d: ",
+                address.getHostAddress(), timeout, ttl, size
+        );
     }
 
     private void checkFail(final InetAddress address, final int timeout, final int rtt, final int packetSize) {
-        assertFalse(ping(address, timeout, rtt, packetSize).isSuccess() && !mayFail);
+        final String context = context(address, timeout, rtt, packetSize);
+        final PingResult result = ping(address, timeout, rtt, packetSize);
+        assertFalse(result.isSuccess() && !mayFail, context + "success");
     }
 
     private void checkFail(final InetAddress address) {
-        checkFail(address, TEST_TIMEOUT, TEST_RTT, PACKET_SIZE);
+        checkFail(address, TEST_TIMEOUT, TEST_TTL, PACKET_SIZE);
     }
 
-    private PingResult ping(final InetAddress address, final int timeout, final int rtt, final int packetSize) {
-        final PingRequest request = new PingRequest(address, timeout, rtt, packetSize, true);
+    private PingResult ping(final InetAddress address, final int timeout, final int ttl, final int packetSize) {
+        final PingRequest request = new PingRequest(address, timeout, ttl, packetSize, true);
         System.out.println("Pinging " + request);
         final PingResult result = ping.ping(request);
         System.out.println("\t" + result);

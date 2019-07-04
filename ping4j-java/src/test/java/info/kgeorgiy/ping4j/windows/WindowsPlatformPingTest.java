@@ -1,12 +1,11 @@
 package info.kgeorgiy.ping4j.windows;
 
 import info.kgeorgiy.ping4j.AbstractPingTest;
-import info.kgeorgiy.ping4j.platform.PlatformPing;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
 /**
- * Tests {@link PlatformPing}.
+ * Tests {@link WindowsPlatformPing}.
  *
  * @author Georgiy Korneev (kgeorgiy@kgeorgiy.info)
  */

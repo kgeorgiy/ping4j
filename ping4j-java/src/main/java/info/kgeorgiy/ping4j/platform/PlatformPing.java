@@ -8,6 +8,8 @@ import info.kgeorgiy.ping4j.PingResult;
 import info.kgeorgiy.ping4j.generic.VersionedPing;
 
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -16,12 +18,18 @@ import java.util.function.Function;
  * @author Georgiy Korneev (kgeorgiy@kgeorgiy.info)
  */
 public abstract class PlatformPing extends VersionedPing {
+    private static final Map<String, String> ARCH_REMAP = new HashMap<>();
+    static {
+        ARCH_REMAP.put("amd64", "x86-64");
+        ARCH_REMAP.put("x86_64", "x86-64");
+    }
+
     /** Library instance. */
     private final Ping4jPlatform platform;
 
     protected PlatformPing(final String system) {
         String systemArch = System.getProperty("os.arch");
-        String arch = systemArch.equals("amd64") ? "x86-64" : systemArch;
+        String arch = ARCH_REMAP.getOrDefault(systemArch, systemArch);
         platform = Native.load("ping4j-" + system + "-" + arch, Ping4jPlatform.class, W32APIOptions.DEFAULT_OPTIONS);
     }
 
