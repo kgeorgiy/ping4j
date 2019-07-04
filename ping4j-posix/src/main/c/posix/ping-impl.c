@@ -23,9 +23,9 @@
 #define SOCKET_TYPE SOCK_RAW
 #endif
 
-const size_t MIN_PACKET_SIZE = sizeof(PING4J_ICMP_ECHO);
+static const size_t MIN_PACKET_SIZE = sizeof(PING4J_ICMP_ECHO);
 
-uint16_t checksum(void *buffer, size_t len) {
+static uint16_t checksum(void *buffer, size_t len) {
     uint16_t *buf = buffer;
     uint32_t sum = 0;
 
@@ -52,7 +52,7 @@ typedef struct Context {
     PING4J_RESULT* result;
 } CONTEXT;
 
-void setResult(CONTEXT* context, uint32_t result, uint32_t value) {
+static void setResult(CONTEXT* context, uint32_t result, uint32_t value) {
     context->result->result = result;
     context->result->value = value;
 
@@ -61,7 +61,7 @@ void setResult(CONTEXT* context, uint32_t result, uint32_t value) {
     }
 }
 
-bool check(CONTEXT* context, int value) {
+static bool check(CONTEXT* context, int value) {
     if (value == -1) {
         setResult(context, RESULT_ERROR, errno);
         return false;
@@ -76,7 +76,7 @@ static const int MAX_ADDRESS_SIZE = 28;
 static const uint32_t ICMP_TIMED_OUT = 11010;
 static const uint32_t IP_HEADER_SIZE = 20;
 
-int64_t currentTimeMillis() {
+static int64_t currentTimeMillis() {
     struct timespec spec;
     if (clock_gettime(CLOCK_MONOTONIC, &spec) == -1) {
         return -1;
@@ -84,9 +84,9 @@ int64_t currentTimeMillis() {
     return spec.tv_sec * (int64_t) 1000 + spec.tv_nsec / 1000000;
 }
 
-volatile uint16_t seq = 0;
+static volatile uint16_t seq = 0;
 
-bool setOption(CONTEXT* context, int level, int name, const void *value, socklen_t length) {
+static bool setOption(CONTEXT* context, int level, int name, const void *value, socklen_t length) {
     return check(context, setsockopt(context->socket, level, name, value, length));
 }
 

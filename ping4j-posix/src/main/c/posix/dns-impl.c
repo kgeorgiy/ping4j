@@ -1,7 +1,8 @@
 #include "ping4j-impl.h"
 
-#include <winsock2.h>
-#include <windns.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 #include <string.h>
 
@@ -16,28 +17,31 @@ static void dnsImpl(
     const size_t maxAddresses,
     const size_t addressIncrement,
     PING4J_RESULT* const result,
-    const WORD queryType,
+    const int family,
     const size_t addressSize,
     const size_t addressOffset
 ) {
-    PDNS_RECORD results;
-    DNS_STATUS status = DnsQuery(name, queryType, DNS_QUERY_STANDARD, NULL, &results, NULL);
-    if (status != 0) {
-        setResult(result, RESULT_ERROR, GetLastError());
+    struct addrinfo hints = {.ai_family = family, .ai_socktype = SOCK_DGRAM};
+
+    struct addrinfo* info;
+    int err = getaddrinfo(name, NULL, &hints, &info);
+
+    if (err != 0) {
+        setResult(result, RESULT_ERROR, err);
         return;
     }
 
     uint8_t* address = (uint8_t*) addresses;
     uint32_t found = 0;
-    for (PDNS_RECORD p = results; p && found < maxAddresses; p = p->pNext) {
-        if (p->wType == queryType) {
-            memcpy(address, ((uint8_t*) p) + addressOffset, addressSize);
+    for (struct addrinfo* p = info; p != NULL; p = p->ai_next) {
+        if (p->ai_family == family) {
+            memcpy(address, ((uint8_t*) p->ai_addr) + addressOffset, addressSize);
             address += addressIncrement;
             found++;
         }
     }
 
-    DnsRecordListFree(results, DnsFreeRecordList);
+    freeaddrinfo(info);
     setResult(result, RESULT_SUCCESS, found);
 }
 
@@ -50,7 +54,7 @@ void ping4jDns4Impl(
 ) {
     dnsImpl(
         name, addresses, maxAddresses, addressIncrement, result,
-        DNS_TYPE_A, PING4J_IPV4_ADDRESS_SIZE, offsetof(DNS_RECORD, Data.A.IpAddress)
+        AF_INET, PING4J_IPV4_ADDRESS_SIZE, offsetof(struct sockaddr_in, sin_addr)
     );
 }
 
@@ -63,6 +67,6 @@ void ping4jDns6Impl(
 ) {
     dnsImpl(
         name, addresses, maxAddresses, addressIncrement, result,
-        DNS_TYPE_AAAA, PING4J_IPV6_ADDRESS_SIZE, offsetof(DNS_RECORD, Data.AAAA.Ip6Address)
+        AF_INET6, PING4J_IPV6_ADDRESS_SIZE, offsetof(struct sockaddr_in6, sin6_addr)
     );
 }
