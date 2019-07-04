@@ -42,7 +42,6 @@ void print6(PING4J_IPV6_ADDRESS* address) {
     );
 }
 
-
 void print6v(void* address) {
     print6((PING4J_IPV6_ADDRESS*) address);
 }
@@ -125,8 +124,10 @@ const char* resultStr(uint32_t result) {
         return RESULT_ERROR_STR;
     } else if (result == RESULT_STATUS) {
         return RESULT_STATUS_STR;
+    } else {
+        assert(false);
+        return NULL;
     }
-    assert(false);
 }
 
 void assertResult(uint32_t expectedResult, struct Ping4jResult* result) {
@@ -160,7 +161,7 @@ void checkSuccess4(PING4J_IPV4_ADDRESS* address, bool global) {
 
     if (global){
         check4(RESULT_STATUS, address, 1, 100, 100);
-        check4(RESULT_STATUS, address, 100, 1, 100);
+        check4(RESULT_STATUS, address, 1000, 1, 100);
     }
 }
 
@@ -192,7 +193,6 @@ void checkFail6(PING4J_IPV6_ADDRESS* address) {
     check6(RESULT_STATUS, address, 100, 100, 100);
 }
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
 int main() {
     PING4J_IPV4_ADDRESS local4 = {{127, 0, 0, 1}};
     PING4J_IPV4_ADDRESS reserved4 = {{192, 0, 1, 1}};
