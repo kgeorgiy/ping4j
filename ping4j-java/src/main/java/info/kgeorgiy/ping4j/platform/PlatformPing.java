@@ -19,8 +19,10 @@ public abstract class PlatformPing extends VersionedPing {
     /** Library instance. */
     private final Ping4jPlatform platform;
 
-    protected PlatformPing(final String suffix) {
-        platform = Native.load("ping4j-" + suffix, Ping4jPlatform.class, W32APIOptions.DEFAULT_OPTIONS);
+    protected PlatformPing(final String system) {
+        String systemArch = System.getProperty("os.arch");
+        String arch = systemArch.equals("amd64") ? "x86-64" : systemArch;
+        platform = Native.load("ping4j-" + system + "-" + arch, Ping4jPlatform.class, W32APIOptions.DEFAULT_OPTIONS);
     }
 
 

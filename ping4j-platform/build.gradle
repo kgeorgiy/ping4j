@@ -48,16 +48,18 @@ model {
     }
 }
 
-//task copyLibraries(type: Copy, dependsOn: ["linkDebugX86", "linkDebugX86-64"]) {
-//    with copySpec {
-//        from file("${buildDir}/lib/main/debug/x86-64/ping4j-windows.dll")
-//        rename { _ -> "ping4j-windows-x86_64.dll"}
-//    }
-//    with copySpec {
-//        from file("${buildDir}/lib/main/debug/x86/ping4j-windows.dll")
-//        rename { _ -> "ping4j-windows-x86.dll"}
-//    }
-//    into file("${projectDir}/_deploy")
-//}
-//
-//tasks.build.dependsOn(copyLibraries)
+task copyLibraries(type: Copy, dependsOn: assemble) {
+    library.targetMachines.get().each {
+        def os = it.operatingSystemFamily
+        def prefix = os.windows ? "" : "lib"
+        def ext = os.windows ? "dll" : "so"
+        def arch = it.architecture
+        with copySpec {
+            from file("${buildDir}/lib/main/debug/$os/$arch/${prefix}ping4j-platform.$ext")
+            rename { _ -> "${prefix}ping4j-$os-$arch.$ext"}
+        }
+    }
+    into file("${projectDir}/_deploy")
+}
+
+tasks.build.dependsOn(copyLibraries)
