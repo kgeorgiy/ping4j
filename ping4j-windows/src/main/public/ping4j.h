@@ -9,6 +9,7 @@
     #pragma error Unknown dynamic link import/export semantics.
 #endif
 
+#include <stddef.h>
 #include <stdint.h>
 
 static const uint32_t RESULT_SUCCESS = 0;
