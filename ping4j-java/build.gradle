@@ -14,8 +14,14 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.4.2'
 }
 
+task copyLibraries(type: Copy) {
+    from file('../ping4j-windows/build/lib/main/debug/x86-64/ping4j-windows.dll')
+    into "$buildDir/libs/"
+}
+
 tasks.test {
     dependsOn ':ping4j-windows:build'
+    dependsOn copyLibraries
     systemProperty "jna.library.path", "../ping4j-windows/build/lib/main/debug/x86-64"
     useJUnitPlatform()
 }

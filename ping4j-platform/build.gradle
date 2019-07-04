@@ -1,0 +1,63 @@
+plugins {
+    id 'cpp-library'
+    id 'cpp-unit-test'
+}
+
+def configure(component, sources) {
+    component.targetMachines = [
+        machines.windows.x86, machines.windows.x86_64,
+        machines.linux.x86, machines.linux.x86_64,
+        machines.macOS.x86, machines.macOS.x86_64
+    ]
+
+    component.binaries.configureEach {
+        def compileTask = compileTask.get()
+        def linkTask = linkTask.get()
+        def windows = targetMachine.operatingSystemFamily.windows
+        def impl = windows ? "windows" : "posix"
+
+        compileTask.source.from fileTree(dir: "src/" + sources + "/c", include: ["*.c", impl + "/*.c"])
+        if (toolChain instanceof VisualCpp) {
+            compileTask.compilerArgs = ["/TC", "/W4", "/WX", "/wd4214"]
+            if (windows) {
+                linkTask.linkerArgs = ["iphlpapi.lib", "dnsapi.lib"]
+            }
+        } else if (toolChain instanceof GccCompatibleToolChain) {
+            compileTask.compilerArgs = [
+                "-x", "c", "-std=c99",
+                "-D_POSIX_C_SOURCE=200112L", "-D_DARWIN_C_SOURCE",
+                "-Wall", "-Werror"
+            ]
+            if (windows) {
+                linkTask.linkerArgs = ["-liphlpapi", "-ldnsapi"]
+            }
+        }
+    }
+}
+
+configure(library, "main")
+configure(unitTest, "test")
+
+library.linkage = [Linkage.SHARED]
+
+model {
+    toolChains {
+        visualCpp(VisualCpp)
+        gcc(Gcc)
+        clang(Clang)
+    }
+}
+
+//task copyLibraries(type: Copy, dependsOn: ["linkDebugX86", "linkDebugX86-64"]) {
+//    with copySpec {
+//        from file("${buildDir}/lib/main/debug/x86-64/ping4j-windows.dll")
+//        rename { _ -> "ping4j-windows-x86_64.dll"}
+//    }
+//    with copySpec {
+//        from file("${buildDir}/lib/main/debug/x86/ping4j-windows.dll")
+//        rename { _ -> "ping4j-windows-x86.dll"}
+//    }
+//    into file("${projectDir}/_deploy")
+//}
+//
+//tasks.build.dependsOn(copyLibraries)
